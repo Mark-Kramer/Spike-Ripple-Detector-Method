@@ -43,9 +43,12 @@ function [res,diagnostics] = spike_ripple_detector(data,time, varargin)
       Hd = design(d,'equiripple');                         	%Design the filter
       [num, den] = tf(Hd);                               	%Convert filter to numerator, denominator expression.
       order = length(num);                                	%Get filter order.
+      diagnostics.num = num;
+      diagnostics.den = den;
+      diagnostics.order = order;
   
       dfilt = filter(num, den, data);                       %Filter the data.
-      dfilt = [dfilt(order/2+1:end); zeros(order/2,1)];     %Shift after filtering.
+      dfilt = [dfilt(floor(order/2+1):end); zeros(floor(order/2),1)];     %Shift after filtering.
       amp   = abs(hilbert(dfilt));                          %Compute amplitude envelope.
       
       if ~isempty(varargin)                                 %Choose envelope threshold,
