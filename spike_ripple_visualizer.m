@@ -87,7 +87,7 @@ function [expert_classify] = spike_ripple_visualizer(data, time, res0, diagnosti
 
     %% Visualize
 
-    expert_classify = cell(length(res),1);
+    expert_classify = cell(size(res));
     
     for ek=1:length(res)
         
@@ -161,4 +161,5 @@ function [expert_classify] = spike_ripple_visualizer(data, time, res0, diagnosti
             expert_classify{ek,1}         = input0;
         end
     end
+    
 end

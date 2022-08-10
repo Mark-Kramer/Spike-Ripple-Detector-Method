@@ -18,10 +18,10 @@ function [S,times,freq]=hannspecgramc(d1,movingwin,params)
   while iStart+iWin < length(tEDF)
 
       dnow    = d1(iStart:iStart+iWin-1);
-      dnow    = dnow - mean(dnow);
+      dnow    = dnow - nanmean(dnow);
       dnow    = hann(length(dnow)).*dnow;
       spectrum= fft(dnow).*conj(fft(dnow));
-      S(counter,:)   = spectrum(1:iWin/2+1);
+      S(counter,:)   = real(spectrum(1:iWin/2+1));
       times(counter) = tEDF(iStart+iWin/2);
       
       counter=counter+1;
