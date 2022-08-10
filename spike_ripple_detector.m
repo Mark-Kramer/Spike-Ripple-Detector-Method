@@ -4,9 +4,14 @@
 % INPUTS:
 % data = the time series data, in this case EEG from one electrode.
 % time = the time axis for the data, in units of seconds.
-% varargin = set this paramater to a value between 0 and 1 to choose the
+% ADVANCED INPUTS:
+% varargin = 'PercentileEnvelope', value
+%   set 'value'  between 0 and 1 to choose the
 %   envelope threshold. If this parameter is not specified, the default
 %   envelope threshold of 0.85 is used.
+% varargin = 'SharedMaxMin', [value1, value2]
+%   where value1 = max_min_threshold
+%         value2 = peak_threshold
 %
 % OUTPUT:
 % res = structure that holds each candidate spike-ripple event.
@@ -49,10 +54,18 @@ function [res,diagnostics] = spike_ripple_detector(data,time, varargin)
   
       dfilt = filter(num, den, data);                       %Filter the data.
       dfilt = [dfilt(floor(order/2+1):end); zeros(floor(order/2),1)];     %Shift after filtering.
-      amp   = abs(hilbert(dfilt));                          %Compute amplitude envelope.
+      if any(isnan(dfilt))                                  % If there's a nan in the data,
+          nan_dfilt = find(isnan(dfilt));                   % ... find nans,
+          temp_for_hilbert = dfilt;                         % ... make dfilt for hilbert,
+          temp_for_hilbert(nan_dfilt)=0;                    % ... and put 0s at nans
+          amp   = abs(hilbert(temp_for_hilbert));                                                                                       %Compute amplitude envelope.
+      else
+          amp   = abs(hilbert(dfilt));                      %Compute amplitude envelope.
+      end
       
-      if ~isempty(varargin)                                 %Choose envelope threshold,
-          percentile_envelope = varargin{1};                %... as input,
+      if any(strcmp(varargin, 'PercentileEnvelope'))        %Choose envelope threshold (ADVANCED)
+          i0 = 1+find(strcmp(varargin, 'PercentileEnvelope'));
+          percentile_envelope = varargin{i0};               %... as input,
       else                                                  %... or,
           percentile_envelope = 0.85;                       %... as default envelope threshold.
       end
@@ -60,28 +73,29 @@ function [res,diagnostics] = spike_ripple_detector(data,time, varargin)
       fprintf(['Percentile envelope = ' num2str(percentile_envelope) ' ... \n'])
       diagnostics.threshold = threshold;                    %... save as diagnoistic to return.
       
-                                                            %Get a sampling of max-start values.
-      n_max_min = 10000;                                    %For 10,000 resamples,
-      win_max_min = round(0.050*Fs);                        %... and window interval of 50 ms,
-      max_min_distribution = zeros(n_max_min,1);            %... create a surrogate distribution,
-      for n=1:n_max_min                                     %... for each surrogate,
-          istart=floor(rand*(length(data)-win_max_min));    %... choose a random time index.
-          if istart+win_max_min > length(data)              %... make sure the time interval is not too big,
-              istart = length(data)-win_max_min-1;
+      if any(strcmp(varargin, 'SharedMaxMin'))              %Choose max&min threshold (ADVANCED)
+          i0 = 1+find(strcmp(varargin, 'SharedMaxMin'));    %... as input
+          thresholds = varargin{i0};
+          max_min_threshold = thresholds(1);
+          peak_threshold    = thresholds(2);
+      else                                                      % ... or get a sampling of max-start values.
+          n_max_min = 10000;                                    %For 10,000 resamples,
+          N_time = length(data);
+          win_max_min = round(0.050*Fs);                        %... and window interval of 50 ms,
+          max_min_distribution = zeros(n_max_min,1);            %... create a surrogate distribution,
+          parfor n=1:n_max_min                                     %... for each surrogate,
+              istart=randi(N_time-win_max_min);                 %... choose a random time index.
+                                                                %... compute max value - value @ start of interval.
+              max_min_distribution(n) = max(data(istart:istart+win_max_min-1))-data(istart);
           end
-          if istart==0                                      %... make sure the time interval does not start at 0,
-              istart=1;
-          end                                               %... compute max value - value @ start of interval.
-          max_min_distribution(n) = max(data(istart:istart+win_max_min-1))-data(istart);
+          percentile_max_and_peaks = 0.95;                      %Set max & peak threshold,
+                                                                %Get threshold for max-start values.
+          max_min_threshold = quantile(max_min_distribution, percentile_max_and_peaks);
+                                                                %Get threshold for max voltage values.
+          peak_threshold = quantile(data, percentile_max_and_peaks);
       end
-      
 
-      percentile_max_and_peaks = 0.95;                      %Set max & peak threshold,
-                                                            %Get threshold for max-start values.
-      max_min_threshold = quantile(max_min_distribution, percentile_max_and_peaks);
-                                                            %Get threshold for max voltage values.
-      peak_threshold = quantile(data, percentile_max_and_peaks);
-
+      binary_above = amp > threshold;
       above = find(amp > threshold);                        %Find amp's above threshold.
       t_separation = 0.005;                                 %Set small time seperation to 5 ms,
                                                             %... and merge small separations.
@@ -89,10 +103,9 @@ function [res,diagnostics] = spike_ripple_detector(data,time, varargin)
       for js=0:length(small_separation)-1
           ileft  = small_separation(end-js);
           iright = ileft+1;
-          nleft  = above(ileft)+1;
-          nright = above(iright)-1;
-          above = [above(1:ileft); (nleft:nright)'; above(iright:end)];
+          binary_above(above(ileft):above(iright))=1;
       end
+      above=find(binary_above);
       
       [VALUES, INPOS, FIPOS, LEN] = findseq(diff(above));
       i_values=find(VALUES==1);                             %Locate sequences of value=1.
@@ -129,7 +142,7 @@ function [res,diagnostics] = spike_ripple_detector(data,time, varargin)
               Rhite = zeros(length(INPOS),1);
               Ctime = zeros(length(INPOS),1);
               Vpeak = zeros(length(INPOS),1);
-              for k=1:length(INPOS)                         % Find candidate HFO interval.
+              parfor k=1:length(INPOS)                         % Find candidate HFO interval.
                   good = find(time >= INPOS(k) & time < FIPOS(k));
                   d0 = dfilt(good);                         % Get filtered data.
                   d0 = d0 - mean(d0);                       % Subtract mean.
