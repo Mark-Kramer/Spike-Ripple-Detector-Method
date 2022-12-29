@@ -87,9 +87,10 @@ function [expert_classify] = spike_ripple_visualizer(data, time, res0, diagnosti
 
     %% Visualize
 
-    expert_classify = cell(size(res));
+    expert_classify = cell(length(res),1);
     
-    for ek=1:length(res)
+    ek = 1;
+    while ek <= length(res)
         
         INPOS = res{ek}.INPOS;
         FIPOS = res{ek}.FIPOS;
@@ -154,11 +155,16 @@ function [expert_classify] = spike_ripple_visualizer(data, time, res0, diagnosti
         hold off
         xlim([INPOS-0.5, FIPOS+0.5])
         
-        input0 = input(['Event ' num2str(ek) ' of ' num2str(length(res)) ', Is there an HFO? y/[n]: '], 's');
-        if strcmp(input0, '')               %If you enter nothing,
-            expert_classify{ek,1}         = 'n';       %... it's "no".
-        else
-            expert_classify{ek,1}         = input0;
+        input0 = input(['Event ' num2str(ek) ' of ' num2str(length(res)) ', Is there an HFO? y/[n]/b: '], 's');
+        switch input0
+            case 'b'
+               ek = ek-1; fprintf(['going back one to ' num2str(ek) '\n'])
+            case ''                                       %If you enter nothing,
+               expert_classify{ek,1}         = 'n';       %... it's "no".
+               ek = ek+1;
+            otherwise
+               expert_classify{ek,1}         = input0;
+               ek = ek+1;
         end
     end
     
