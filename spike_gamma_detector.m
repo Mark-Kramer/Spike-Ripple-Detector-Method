@@ -30,7 +30,7 @@
 % DEPENDENCIES:
 % findseq.m developed by Oleg Komarov.
 
-function [res,diagnostics] = spike_ripple_detector(data,time, varargin)
+function [res,diagnostics] = spike_gamma_detector(data,time, varargin)
 
       Fs = 1/(time(2)-time(1));                             %Sampling frequency.
       res = {};                                             %Structure to store results.
@@ -38,13 +38,13 @@ function [res,diagnostics] = spike_ripple_detector(data,time, varargin)
       fprintf('Design the filter ... \n')
       fNQ = Fs/2;                                        	%Define Nyquist frequeuncy.
       d = fdesign.bandpass('Fst1,Fp1,Fp2,Fst2,Ast1,Ap,Ast2',...
-        (60)/fNQ,...                                        %Freq @ edge first stop band.
-        (100)/fNQ,...                                       %Freq @ edge of start of passband.
-        (300)/fNQ,...                                       %Freq @ edge of end of passband
-        (350)/fNQ,...                                       %Freq @ edge second stop band
-        80,...                                              %Attenuation in the first stop band in decibels
+        (20)/fNQ,...                                        %Freq @ edge first stop band.
+        (40)/fNQ,...                                        %Freq @ edge of start of passband.
+        (80)/fNQ,...                                        %Freq @ edge of end of passband
+        (120)/fNQ,...                                       %Freq @ edge second stop band
+        40,...                                              %Attenuation in the first stop band in decibels
         0.1,...                                         	%Amount of ripple allowed in the pass band.
-        40);                                                %Attenuation in the second stop band in decibels
+        20);                                                %Attenuation in the second stop band in decibels
       Hd = design(d,'equiripple');                         	%Design the filter
       [num, den] = tf(Hd);                               	%Convert filter to numerator, denominator expression.
       order = length(num);                                	%Get filter order.
@@ -81,7 +81,7 @@ function [res,diagnostics] = spike_ripple_detector(data,time, varargin)
       else                                                      % ... or get a sampling of max-start values.
           n_max_min = 10000;                                    %For 10,000 resamples,
           N_time = length(data);
-          win_max_min = round(0.050*Fs);                        %... and window interval of 50 ms,
+          win_max_min = round(0.400*Fs);                        %... and window interval of 400 ms,
           max_min_distribution = zeros(n_max_min,1);            %... create a surrogate distribution,
           parfor n=1:n_max_min                                     %... for each surrogate,
               istart=randi(N_time-win_max_min);                 %... choose a random time index.
@@ -97,7 +97,7 @@ function [res,diagnostics] = spike_ripple_detector(data,time, varargin)
 
       binary_above = amp > threshold;
       above = find(amp > threshold);                        %Find amp's above threshold.
-      t_separation = 0.005;                                 %Set small time seperation to 5 ms,
+      t_separation = 0.005;                                 %Set small time seperation to 10 ms,
                                                             %... and merge small separations.
       small_separation = find(diff(above) > 1 & diff(above) < round(t_separation*Fs));
       for js=0:length(small_separation)-1
@@ -120,11 +120,11 @@ function [res,diagnostics] = spike_ripple_detector(data,time, varargin)
           FIPOS = time(above(FIPOS));
           LEN   = LEN/Fs;
           
-          long_enough = find(LEN > 0.02);                   %Find intervals > 20 ms.
+          long_enough = find(LEN > 0.05);                   %Find intervals > 50 ms.
           diagnostics.number_long_enough = length(long_enough);
           
           if ~isempty(long_enough)                          %If we find intervals > 20 ms,
-              fprintf(['Found sequences > 20 ms ... \n' ])
+              fprintf(['Found sequences > 20 ms (' num2str(length(long_enough)) ') ... \n' ])
               INPOS=INPOS(long_enough);                     %... get those intervals.
               FIPOS=FIPOS(long_enough);
               LEN  =LEN(long_enough);
@@ -142,7 +142,7 @@ function [res,diagnostics] = spike_ripple_detector(data,time, varargin)
               Rhite = zeros(length(INPOS),1);
               Ctime = zeros(length(INPOS),1);
               Vpeak = zeros(length(INPOS),1);
-              parfor k=1:length(INPOS)                         % Find candidate HFO interval.
+              for k=1:length(INPOS)                         % Find candidate HFO interval.
                   good = find(time >= INPOS(k) & time < FIPOS(k));
                   d0 = dfilt(good);                         % Get filtered data.
                   d0 = d0 - mean(d0);                       % Subtract mean.
@@ -154,18 +154,38 @@ function [res,diagnostics] = spike_ripple_detector(data,time, varargin)
                   freq(k)=mean(1/(mean(ISI0)/Fs));          % Approx freq.
                   fano(k)=var(ISI0)/mean(ISI0);             % Fano factor of of zero crossing times.
                   center_time = mean(time(good));           % Center time of window.
-                  good = find(time >= center_time-0.05 & time < center_time+0.05);  %+/- 50 ms around center.
+                  good = find(time >= center_time-0.2 & time < center_time+0.2);  %-200,+200 ms around center.
                   dorig = data(good);                       % Get unfiltered data.
                   dorig = smooth(dorig,11);                 % Smooth it.
                   [mx, imx] = max(dorig);                   % Find max.
                   Lhite(k) = mx-dorig(1);                   % Difference between max & left (or start) of interval.
                   Rhite(k) = mx-dorig(end);                 % Difference betweem max & right (or end) of interval.
-                  Ctime(k) = INPOS(k) - time(good(imx));    % Time from ripple start to max
+                  Ctime(k) = INPOS(k) + 0.75*LEN(k) - time(good(imx));    % Time from ripple end to max
                   Vpeak(k) = mx;                            % Max values.
+
+                  % clf
+                  % plot(time(good), data(good))
+                  % hold on
+                  % plot(time(good), dfilt(good))
+                  % plot(time(good(imx)), mx, '*k')
+                  % xline(INPOS(k))
+                  % xline(INPOS(k) + 0.75*LEN(k), ':')
+                  % xline(FIPOS(k))
+                  % hold off
+                  % title([', ZC ' num2str(zc(k))     ', FF ' num2str(fano(k),2) ...
+                  %        ', LHT ' num2str(Lhite(k),3)  ', RHT ' num2str(Rhite(k),3) ', CT ' num2str(Ctime(k),3)...
+                  %        ', VPK ' num2str(Vpeak(k),3)])
+                  % fprintf(['zc    ' num2str(zc(k) >= 3) '\n' ...
+                  %          'fano  ' num2str(fano(k) < 2) '\n' ...
+                  %          'Lhite ' num2str(Lhite(k) > max_min_threshold) '\n' ...
+                  %          'Rhite ' num2str(Rhite(k) > max_min_threshold) '\n' ...
+                  %          'Ctime ' num2str(Ctime(k) < 0) '\n' ...
+                  %          'Vpeak ' num2str(Vpeak(k) > peak_threshold) '\n\n'])
+                  % keyboard
               end
               
               % Find intervals that pass tests.
-              threshold_fano = 1;                           %Fix Fano threshold.
+              threshold_fano = 2;                           %Fix Fano threshold.
 
               %To classify as a spike-ripple detection, must have:
               good = find(zc >= 3 ...                       % At least 3 ZC.
