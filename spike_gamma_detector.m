@@ -1,5 +1,4 @@
-% Spike-ripple detector.
-% Developed by Catherine Chu, Arthur Chan, and Mark Kramer.
+% Spike-gamma detector.
 %
 % INPUTS:
 % data = the time series data, in this case EEG from one electrode.
@@ -14,16 +13,16 @@
 %         value2 = peak_threshold
 %
 % OUTPUT:
-% res = structure that holds each candidate spike-ripple event.
+% res = structure that holds each candidate spike-gamma event.
 %   res.INPOS                %Start time [s]
 %   res.FIPOS                %End time [s]
 %   res.LEN                  %Duration [s]
-%   res.freq                 %Frequency of ripple [Hz].
-%   res.zc                   %Zero-crossing of ripple [Hz]
-%   res.fano                 %Fano factor of ripple.
+%   res.freq                 %Frequency of gamma [Hz].
+%   res.zc                   %Zero-crossing of gamma [Hz]
+%   res.fano                 %Fano factor of gamma.
 %   res.Lhite                %Difference between spike peak and start of interval.
 %   res.Rhite                %Difference between spike peak and end of interval.
-%   res.Ctime                %Time difference between start of ripple and start of spike.
+%   res.Ctime                %Time difference between start of gamma and start of spike.
 %   res.Vpeak                %Peak voltage of spike.
 % diagnostics = structure that holds method diagnostics (see code).
 %
@@ -43,7 +42,7 @@ function [res,diagnostics] = spike_gamma_detector(data,time, varargin)
         (80)/fNQ,...                                        %Freq @ edge of end of passband
         (120)/fNQ,...                                       %Freq @ edge second stop band
         40,...                                              %Attenuation in the first stop band in decibels
-        0.1,...                                         	%Amount of ripple allowed in the pass band.
+        0.1,...                                         	%Amount of gamma allowed in the pass band.
         20);                                                %Attenuation in the second stop band in decibels
       Hd = design(d,'equiripple');                         	%Design the filter
       [num, den] = tf(Hd);                               	%Convert filter to numerator, denominator expression.
@@ -160,7 +159,7 @@ function [res,diagnostics] = spike_gamma_detector(data,time, varargin)
                   [mx, imx] = max(dorig);                   % Find max.
                   Lhite(k) = mx-dorig(1);                   % Difference between max & left (or start) of interval.
                   Rhite(k) = mx-dorig(end);                 % Difference betweem max & right (or end) of interval.
-                  Ctime(k) = INPOS(k) + 0.75*LEN(k) - time(good(imx));    % Time from ripple end to max
+                  Ctime(k) = INPOS(k) + 0.75*LEN(k) - time(good(imx));    % Time at 75% of gamma event duration to spike max.
                   Vpeak(k) = mx;                            % Max values.
 
                   % clf
@@ -187,7 +186,7 @@ function [res,diagnostics] = spike_gamma_detector(data,time, varargin)
               % Find intervals that pass tests.
               threshold_fano = 2;                           %Fix Fano threshold.
 
-              %To classify as a spike-ripple detection, must have:
+              %To classify as a spike-gamma detection, must have:
               good = find(zc >= 3 ...                       % At least 3 ZC.
                   & fano < threshold_fano ...               % Fano < 1.
                   & Lhite > max_min_threshold ...           % Max - start value > threshold.
@@ -195,7 +194,7 @@ function [res,diagnostics] = spike_gamma_detector(data,time, varargin)
                   & Ctime < 0 ...                           % Ripple begin before peak.
                   & Vpeak > peak_threshold);                % Max > threshold.
               end
-              % Save candidate spike-ripple events.
+              % Save candidate spike-gamma events.
               INPOS=INPOS(good);
               FIPOS=FIPOS(good);
               LEN  =LEN(good);
@@ -220,18 +219,18 @@ function [res,diagnostics] = spike_gamma_detector(data,time, varargin)
               Rhite  = Rhite(isort);
               Ctime  = Ctime(isort);
               Vpeak  = Vpeak(isort);
-              fprintf(['Candidate spike-ripple events = ' num2str(length(good)) ' ... \n' ])
+              fprintf(['Candidate spike-gamma events = ' num2str(length(good)) ' ... \n' ])
               
-              %Save the results for each candidate spike-ripple event.
+              %Save the results for each candidate spike-gamma event.
               res.INPOS = INPOS;                %Start time [s]
               res.FIPOS = FIPOS;                %End time [s]
               res.LEN   = LEN;                  %Duration [s]
-              res.freq  = freq;                 %Frequency of ripple [Hz].
-              res.zc    = zc;                   %Zero-crossing of ripple [Hz]
-              res.fano  = fano;                 %Fano factor of ripple.
+              res.freq  = freq;                 %Frequency of gamma [Hz].
+              res.zc    = zc;                   %Zero-crossing of gamma [Hz]
+              res.fano  = fano;                 %Fano factor of gamma.
               res.Lhite  = Lhite;               %Difference between spike peak and start of interval.
               res.Rhite  = Rhite;               %Difference between spike peak and end of interval.
-              res.Ctime  = Ctime;               %Time difference between start of ripple and start of spike.
+              res.Ctime  = Ctime;               %Time difference between start of gamma and start of spike.
               res.Vpeak = Vpeak;                %Peak voltage of spike.
           end
 end

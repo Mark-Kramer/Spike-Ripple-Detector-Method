@@ -1,25 +1,25 @@
-% Function to visualize and classify the candidate spike ripple events
-% detected in spike_ripple_detector.m
+% Function to visualize and classify the candidate spike gamma events
+% detected in spike_gamma_detector.m
 %
 % This function produces a figure showing the (1) the original data, (2)
-% the filtered data, and (3) the spectrogram surrounding each candidate spike ripple
+% the filtered data, and (3) the spectrogram surrounding each candidate spike gamma
 % event.
 %
-% For each candidate spike ripple event, the user enters "y" for YES or "n"
+% For each candidate spike gamma event, the user enters "y" for YES or "n"
 % for NO at the command line. The results of these classifications are then
 % returned in the output.
 
 % INPUTS.
-% data = the LFP data (same as for spike_ripple_detector.m)
-% time = the time axis (same as for spike_ripple_detector.m)
-% res0 = the 1st output of spike_ripple_detector.m
-% diagnostics = the 2nd output of spike_ripple_detector.m
+% data = the LFP data (same as for spike_gamma_detector.m)
+% time = the time axis (same as for spike_gamma_detector.m)
+% res0 = the 1st output of spike_gamma_detector.m
+% diagnostics = the 2nd output of spike_gamma_detector.m
 
 % OUTPUTS.
-% expert_classify = the classification of each candidate spike ripple
+% expert_classify = the classification of each candidate spike gamma
 %   event as 'y' or 'n'. 
 
-function [expert_classify] = spike_ripple_visualizer(data, time, res0, diagnostics)
+function [expert_classify] = spike_gamma_visualizer(data, time, res0, diagnostics)
 
     Fs = 1/(time(10)-time(9));
     num = diagnostics.num;
@@ -50,7 +50,7 @@ function [expert_classify] = spike_ripple_visualizer(data, time, res0, diagnosti
         
         dspec = data(igood)-mean(data(igood));
         params.Fs    = Fs;             % Sampling frequency [Hz]
-        params.fpass = [30 250];       % Frequencies to visualize in spectra [Hz]
+        params.fpass = [30 100];       % Frequencies to visualize in spectra [Hz]
         movingwin    = [0.200,0.005];  % Window size, Step size [s]
         params.tEDF  = t;
         [S,S_times,S_freq] = hannspecgramc(dspec,movingwin,params);
@@ -155,7 +155,7 @@ function [expert_classify] = spike_ripple_visualizer(data, time, res0, diagnosti
         hold off
         xlim([INPOS-0.5, FIPOS+0.5])
         
-        input0 = input(['Event ' num2str(ek) ' of ' num2str(length(res)) ', Is there an HFO? y/[n]/b: '], 's');
+        input0 = input(['Event ' num2str(ek) ' of ' num2str(length(res)) ', Is there an spike-gamma? y/[n]/b: '], 's');
         switch input0
             case 'b'
                ek = ek-1; fprintf(['going back one to ' num2str(ek) '\n'])
