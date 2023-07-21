@@ -1,25 +1,25 @@
-% Function to visualize and classify the candidate spike ripple events
-% detected in spike_ripple_detector.m
+% Function to visualize and classify the candidate  ripple events
+% detected in ripple_detector.m
 %
 % This function produces a figure showing the (1) the original data, (2)
-% the filtered data, and (3) the spectrogram surrounding each candidate spike ripple
+% the filtered data, and (3) the spectrogram surrounding each candidate ripple
 % event.
 %
-% For each candidate spike ripple event, the user enters "y" for YES or "n"
+% For each candidate ripple event, the user enters "y" for YES or "n"
 % for NO at the command line. The results of these classifications are then
 % returned in the output.
 
 % INPUTS.
-% data = the LFP data (same as for spike_ripple_detector.m)
-% time = the time axis (same as for spike_ripple_detector.m)
-% res0 = the 1st output of spike_ripple_detector.m
-% diagnostics = the 2nd output of spike_ripple_detector.m
+% data = the LFP data (same as for ripple_detector.m)
+% time = the time axis (same as for ripple_detector.m)
+% res0 = the 1st output of ripple_detector.m
+% diagnostics = the 2nd output of ripple_detector.m
 
 % OUTPUTS.
-% expert_classify = the classification of each candidate spike ripple
+% expert_classify = the classification of each candidate ripple
 %   event as 'y' or 'n'. 
 
-function [expert_classify] = spike_ripple_visualizer(data, time, res0, diagnostics)
+function [expert_classify] = ripple_visualizer(data, time, res0, diagnostics)
 
     Fs = 1/(time(10)-time(9));
     num = diagnostics.num;
@@ -38,10 +38,6 @@ function [expert_classify] = spike_ripple_visualizer(data, time, res0, diagnosti
         freq  = res0.freq(k);
         zc    = res0.zc(k);
         fano  = res0.fano(k);
-        Lhite = res0.Lhite(k);
-        Rhite = res0.Rhite(k);
-        Ctime = res0.Ctime(k);
-        Vpeak = res0.Vpeak(k);
         
         igood = find(time > INPOS-0.5 & time < FIPOS+0.5);
         t     = time(igood);
@@ -69,10 +65,6 @@ function [expert_classify] = spike_ripple_visualizer(data, time, res0, diagnosti
         res{counter}.freq  = freq;
         res{counter}.zc    = zc;
         res{counter}.fano  = fano;
-        res{counter}.Lhite = Lhite;
-        res{counter}.Rhite = Rhite;
-        res{counter}.Ctime = Ctime;
-        res{counter}.Vpeak = Vpeak;
         res{counter}.threshold = diagnostics.threshold;
         res{counter}.t     = t;
         res{counter}.data  = dat;
@@ -98,10 +90,6 @@ function [expert_classify] = spike_ripple_visualizer(data, time, res0, diagnosti
         freq  = res{ek}.freq;
         zc    = res{ek}.zc;
         fano  = res{ek}.fano;
-        Lhite = res{ek}.Lhite;
-        Rhite = res{ek}.Rhite;
-        Ctime = res{ek}.Ctime;
-        Vpeak = res{ek}.Vpeak;
         
         data  = res{ek}.data;
         dfilt = res{ek}.dfilt;
@@ -129,8 +117,6 @@ function [expert_classify] = spike_ripple_visualizer(data, time, res0, diagnosti
         hold off
         title(['# ' num2str(length(INPOS)) ', @ ' num2str(k) ...
             ' DUR ' num2str(LEN*1000,3)  ', FQ ' num2str(freq,3) ...
-            ', LHT ' num2str(Lhite,3)  ', RHT ' num2str(Rhite,3) ', CT ' num2str(Ctime,3)...
-            ', VPK ' num2str(Vpeak,3) ...
             ', ZC ' num2str(zc)     ', FF ' num2str(fano,2)])
         
         subplot(3,1,2)
