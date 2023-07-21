@@ -122,11 +122,16 @@ function [res,diagnostics] = ripple_detector(data,time, varargin)
               end
               
               % Find intervals that pass tests.
-              threshold_fano = 1;                           %Fix Fano threshold.
+              if any(strcmp(varargin, 'FanoThreshold'))     %Choose Fano threshold (ADVANCED)
+                  i0 = 1+find(strcmp(varargin, 'FanoThreshold'));
+                  threshold_fano = varargin{i0};            %... as input,
+              else                                          %... or,
+                  threshold_fano = 1.0;                     %... as default Fano threshold.
+              end
 
               %To classify as a spike-ripple detection, must have:
               good = find(zc >= 3 ...                       % At least 3 ZC.
-                  & fano < threshold_fano);                 % Fano < 1.
+                  & fano < threshold_fano);                 % Fano < FanoThreshold.
   
               end
               % Save candidate spike-ripple events.
